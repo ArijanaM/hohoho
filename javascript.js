@@ -13,8 +13,7 @@ const giftsUpdate = document.getElementById('gifts');
 const currentco2Update = document.getElementById('consumed');
 let distanceToRov = document.getElementById('distance-to-rovaniemi');
 let distanceFromLastt = document.getElementById('dist-from-last');
-let newICAO = document.getElementById('new-icao');
-let degrees = document.getElementById('degrees');
+
 
 //airport weather
 const temperature = document.getElementById('airport-temp');
@@ -26,10 +25,14 @@ let icao_start;                       //ICAO of the depature airport
 const icao_rovaniemi = 'EFRO';        //ICAO of Rovaniemi
 const pos_Rov = [66.565, 25.83];
 let distanceTotal;
+let newICAO;
+let degrees;
 let currentAirport = ' ';
+let currentAirportICAO;
 let currentAirport_long;
 let currentAirport_lat;
 let gifts;
+let round = 5;
 
 //main-game
 const mainProgramDiv = document.getElementById('main-program');
@@ -39,6 +42,9 @@ let correctAnswer;
 
 //Rock Paper Scicssors
 const rps_div = document.getElementById('rps');
+
+// Next destination button
+const next_destination = document.getElementById('next-destination');
 
 //update gifts
 //giftsUpdate.innerText = gifts;
@@ -111,6 +117,8 @@ async function getAirportPosition(icao) {
 
     // Show the airport name to the screen
     currentAirport = jsonData.airport.Name;
+    currentAirportICAO = jsonData.location;
+    console.log('current airport ICAO: ' + currentAirportICAO);
     console.log('current airport: ' + currentAirport);
     currentAirport_lat = jsonData.airport.Lat;
     currentAirport_long = jsonData.airport.Long;
@@ -153,15 +161,22 @@ async function newAirportPosition(icao) {
 
   try {
 
-    let pos = [degrees];                                  // create position array for leaflet library
+    const response = await fetch(
+        'http://127.0.0.1:5000/airport/' + icao);    // starting data download, fetch returns a promise which contains an object of type 'response'
+    const jsonData = await response.json();          // retrieving the data retrieved from the response object using the json() function
+    const pos = [jsonData.Lat, jsonData.Long];                                  // create position array for leaflet library
+    console.log(jsonData);
+
+    //let pos = [degrees];                                  // create position array for leaflet library
     console.log(pos, 'kakakakakakkka');                                                              // log the result to the console
     //console.log(jsonData.airport.Name, jsonData.airport.Lat,jsonData.airport.Long);
 
     // Show the airport name to the screen
-    currentAirport = jsonData.airport.Name;
+    currentAirport = jsonData.Location;
     console.log('current airport: ' + currentAirport);
-    currentAirport_lat = jsonData.airport.Lat;
-    currentAirport_long = jsonData.airport.Long;
+    currentAirport_lat = jsonData.Lat;
+    currentAirport_long = jsonData.Long;
+
 
     //Add current airport name in Airport name h2
     const airportUpdateName = document.getElementById('airport-name');
@@ -188,7 +203,7 @@ async function newAirportPosition(icao) {
     console.log(jsonDataWeather.icon);
     updateWeather(jsonDataWeather.temperature, jsonDataWeather.description,
         jsonDataWeather.wind, jsonDataWeather.icon);      //update weather
-  
+
     return jsonDataWeather;
   } catch (error) {
     console.log(error.message);
@@ -326,7 +341,7 @@ async function checkAnswer() {
   }
 
   const next_button = document.createElement('button');
-  next_button.innerHTML = 'Next destination';
+  next_button.innerHTML = 'Next challenge';
   next_button.setAttribute('class', 'game-btn');
   document.getElementById('next-btn').appendChild(next_button);
   next_button.addEventListener('click', loopNextStop);
@@ -334,6 +349,7 @@ async function checkAnswer() {
     document.getElementById('next-btn').innerHTML = '';
     document.getElementById('answer-selection').innerHTML = '';
   };
+
 }
 
 //push true,false options and button for quiz game
@@ -383,7 +399,6 @@ function rock_paper_scissors() {
   rpsButton.innerText = 'Submit';
   rps_div.appendChild(rpsButton);
   rpsButton.addEventListener('click', rpsExecute);
-
 }
 
 //fetch the computer options in RPS game
@@ -406,6 +421,10 @@ async function checkComputerOption(playerValue) {                 // asynchronou
     h2.setAttribute('id', 'rps-statement');
     h2.appendChild(document.createTextNode(
         `${jsonData.result}. Check your gifts update!`));
+    const button_destination = document.createElement('button');
+    h2.appendChild(button_destination);
+    button_destination.innerHTML = 'Next destination';
+
     mainProgramDiv.appendChild(h2);
     if (jsonData.status == -1) {
       changeGift('deduct');
@@ -421,6 +440,7 @@ async function checkComputerOption(playerValue) {                 // asynchronou
 function showRpsResult() {
   const gameResultDiv = document.createElement('div');
   rps_div.appendChild(gameResultDiv);
+
 }
 
 //when button is clicked, collect the player's option in RPS game and compare with Computer game
@@ -456,7 +476,7 @@ async function airport_start(evt) {
 
   //await addCountDown();
   await fetch_question_quiz();
-  pushQuiz();
+  game();
 }
 
 /* draw the map with two positions and a line between them */
@@ -495,9 +515,12 @@ function airportOptions(jsonData) {
     document.getElementById('user-info').innerHTML = '';
   };
 }
+function loopNextStop() {
 
-const loopNextStop = () => {
-  findNextAirport();
+  findNextAirport(currentAirportICAO);
+  findNextAirport(currentAirportICAO);
+  findNextAirport(currentAirportICAO);
+  findNextAirport(currentAirportICAO);
 };
 
 // SELECT NEXT AIRPORT TO FLY TO
@@ -508,21 +531,50 @@ async function findNextAirport(icao_start) {
         'http://127.0.0.1:5000/next_airport/' + icao_start);    // starting data download, fetch returns a promise which contains an object of type 'response'
     const jsonData = await response.json();          // retrieving the data retrieved from the response object using the json() function
     console.log(jsonData, 'vavavavav');
-    drawMapWithLine(jsonData.start, jsonData.end);
+    //drawMapWithLine(jsonData.start, jsonData.end);
     degrees = jsonData.Degrees;
-    distanceTotal = jsonData.DistanceToRoi;     // log the result to the console
+    distanceTotal = jsonData.DistanceToRoi;
+    round = jsonData.Round;
+    console.log(round)
     newICAO = jsonData.ICAO;
-    distanceFromLastt = jsonData.DistanceFromLast;
-    distanceToRov.innerHTML = `${jsonData.DistanceToRoi}`;
-    distanceFromLastt.innerHTML = `${jsonData.DistanceFromLast}`;
-    newICAO.innerHTML = `${jsonData.ICAO}`;
-    degrees.innerHTML = `${jsonData.Degrees}`;
+    currentAirportICAO = jsonData.ICAO;
+    currentAirport = jsonData.Name;
 
-    return jsonData;
+    distanceFromLastt = jsonData.DistanceFromLast;
+    console.log(degrees);
+    console.log(newICAO);
+    console.log(currentAirport);
+    console.log(currentAirportICAO);
+    console.log(currentAirport_lat);
+    console.log(currentAirport_long);
+
+    currentAirport_lat = degrees[0];
+    currentAirport_long = degrees[1];
+    console.log(currentAirport_lat);
+    console.log(currentAirport_long);
+
+
+    const airportUpdateName = document.getElementById('airport-name');
+    airportUpdateName.innerHTML = `<span>${currentAirport}</span>`;
+    drawMapWithMarker(degrees, currentAirportICAO);
+    drawMapWithMarkerRovaniemi(pos_Rov, icao_rovaniemi);
+
+    //fetch weather of the airport
+    const responseWeather = await fetch(
+        'http://127.0.0.1:5000/weather?lat=' + currentAirport_lat + '&long=' +
+        currentAirport_long);    // starting data download, fetch returns a promise which contains an object of type 'response'
+
+    const jsonDataWeather = await responseWeather.json();
+    console.log(jsonDataWeather);               // JsonDataweather objects
+    console.log(jsonDataWeather.icon);
+    updateWeather(jsonDataWeather.temperature, jsonDataWeather.description,
+        jsonDataWeather.wind, jsonDataWeather.icon);      //update weather
+
+    //newAirportPosition(newICAO);
   } catch (error) {
     console.log(error.message);
   }
-  newAirportPosition();
+
 };
 
 //fetch all the airports in the chosen city
@@ -555,4 +607,8 @@ search.addEventListener('click', fetch_airport);
 if (gifts <= 0) {
   alert('Game over! You have 0 gift');
   location = 'Exit.html';
+}
+
+function game() {
+  pushQuiz();
 }
